@@ -53,7 +53,7 @@ without features, run `--task seg` then `--task coords`.
 - `--search_nested` — recurse into subdirectories of `--wsi_dir`.
 
 **Segmentation**
-- `--segmenter {hest,grandqc,otsu}` (default `hest`).
+- `--segmenter {hest,grandqc,otsu,goldmark}` (default `hest`).
 - `--seg_conf_thresh FLOAT` (default 0.5) — lower keeps more tissue (try 0.4).
 - `--remove_holes` — drop patches over tissue holes (default keeps them).
 - `--remove_artifacts` — extra GrandQC pass removing folds/blur/stains/penmarks/OOF (aggressive).
@@ -159,6 +159,10 @@ pass its required patch_size/mag.
 - `hest` (default): general tissue-vs-background, GPU.
 - `grandqc`: fast H&E (non-commercial license; cite the GrandQC paper).
 - `otsu`: classical thresholding, **CPU-only**, no model download — the fallback when no GPU.
+- `goldmark`: GOLDMARK / MSK SlideTileExtractor (vendored), **CPU-only**. Whole-slide thumbnail
+  mask (RGB marker detection + Otsu) converted to occupancy polygons / GeoJSON; the
+  regular `coords` stage then tiles from those contours. Defaults: mask size 224,
+  grid mult 4, working MPP 0.5.
 - `--remove_penmarks`: removes GrandQC class PenMarking (+Background). Gentle.
 - `--remove_artifacts`: keeps **only** GrandQC class "Normal Tissue", removing Fold,
   Darkspot, PenMarking, Edge/Air Bubble, **OOF (out-of-focus)**, Background. Aggressive — a

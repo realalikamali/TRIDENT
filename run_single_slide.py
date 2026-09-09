@@ -10,7 +10,7 @@ import argparse
 import os
 
 from trident import load_wsi
-from trident.segmentation_models import segmentation_model_factory
+from trident.segmentation_models import is_cpu_segmenter, segmentation_model_factory
 from trident.patch_encoder_models import encoder_factory
 from trident.patch_encoder_models import encoder_registry as patch_encoder_registry
 from trident.Summary import start_run, finalize_run
@@ -40,8 +40,8 @@ def parse_arguments():
                         help="Magnification at which patches/features are extracted")
     parser.add_argument("--patch_size", type=int, default=256, help="Patch size at which coords/features are extracted")
     parser.add_argument('--segmenter', type=str, default='hest', 
-                        choices=['hest', 'grandqc', 'otsu'],
-                        help='Type of tissue vs background segmenter. Options are HEST, GrandQC, or Otsu.')
+                        choices=['hest', 'grandqc', 'otsu', 'goldmark'],
+                        help='Type of tissue vs background segmenter. Options are HEST, GrandQC, Otsu, or Goldmark.')
     parser.add_argument('--reader_type', type=str, choices=['openslide', 'image', 'cucim', 'sdpc', 'omezarr', 'czi'], default=None,
                     help='Force the use of a specific WSI image reader. Options are ["openslide", "image", "cucim", "sdpc", "omezarr", "czi"]. Defaults to None (auto-determine which reader to use).')
     parser.add_argument('--seg_conf_thresh', type=float, default=0.5, 
@@ -85,7 +85,7 @@ def process_slide(args):
     # Initialize the WSI
     print(f"Processing slide: {args.slide_path}")
     with load_wsi(slide_path=args.slide_path, reader_type=getattr(args, "reader_type", None), lazy_init=False, custom_mpp_keys=args.custom_mpp_keys) as slide:
-        seg_device = "cpu" if args.segmenter == "otsu" else f"cuda:{args.gpu}"
+        seg_device = "cpu" if is_cpu_segmenter(args.segmenter) else f"cuda:{args.gpu}"
         # Step 1: Tissue Segmentation
         print("Running tissue segmentation...")
         segmentation_model = segmentation_model_factory(

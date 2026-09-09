@@ -84,7 +84,7 @@ If embedded MPP metadata is detected in a slide, Trident compares it to the CSV 
    - `--wsi_dir ./wsis`: Path to dir with your WSIs.
    - `--job_dir ./trident_processed`: Output dir for processed results.
    - `--gpus 0`: Use GPU index 0. Pass multiple IDs (e.g. `--gpus 0 1`) to shard across GPUs, or `-1` to force CPU.
-  - `--segmenter`: Segmentation model. Defaults to `hest`. Use `grandqc` ([Citation necessary](https://www.nature.com/articles/s41467-024-54769-y), [Non-commercial use](https://creativecommons.org/licenses/by-nc-sa/4.0/), [Original repository](https://github.com/cpath-ukk/grandqc)) for fast H&E segmentation or `otsu` for a classical image-processing-only fallback. Add the option `--remove_artifacts` for additional artifact clean up.
+  - `--segmenter`: Segmentation model. Defaults to `hest`. Use `grandqc` ([Citation necessary](https://www.nature.com/articles/s41467-024-54769-y), [Non-commercial use](https://creativecommons.org/licenses/by-nc-sa/4.0/), [Original repository](https://github.com/cpath-ukk/grandqc)) for fast H&E segmentation, `otsu` for a classical image-processing-only fallback, or `goldmark` for the GOLDMARK / MSK SlideTileExtractor thumbnail algorithm (CPU-only; marker detection + Otsu). Add the option `--remove_artifacts` for additional artifact clean up.
  - **Outputs**:
    - WSI thumbnails in `./trident_processed/thumbnails`.
    - WSI thumbnails with tissue contours in `./trident_processed/contours`.
@@ -95,6 +95,7 @@ If embedded MPP metadata is detected in a slide, Trident compares it to the CSV 
 | **HEST** (default) | `--segmenter hest` | [MahmoodLab/hest-tissue-seg](https://huggingface.co/MahmoodLab/hest-tissue-seg) | 🌐 [CC-BY-NC-SA-4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) |
 | **GrandQC** | `--segmenter grandqc` | [cpath-ukk/grandqc](https://github.com/cpath-ukk/grandqc) | 🌐 [CC-BY-NC-SA-4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) |
 | **Otsu** | `--segmenter otsu` | — | — (classical, no model) |
+| **Goldmark** | `--segmenter goldmark` | [GOLDMARK](https://github.com/chadvanderbilt/GOLDMARK) (vendored) | — (classical, no model) |
 
  **Step 2: Tissue Patching:** Extracts patches from segmented tissue regions at a specific magnification.
  - **Command**:
@@ -227,7 +228,7 @@ trident batch  -- --task all --wsi_dir ./wsis --job_dir ./job --patch_encoder un
 
 - **Q**: I am not satisfied with the tissue vs background segmentation. What can I do?
    - **A**: Trident uses GeoJSON to store and load segmentations. This format is natively supported by [QuPath](https://qupath.github.io/). You can load the Trident segmentation into QuPath, modify it using QuPath's annotation tools, and save the updated segmentation back to GeoJSON.
-   - **A**: You can try another segmentation model by specifying `--segmenter grandqc` ([Citation necessary](https://www.nature.com/articles/s41467-024-54769-y), [Non-commercial use](https://creativecommons.org/licenses/by-nc-sa/4.0/), [Original repository](https://github.com/cpath-ukk/grandqc)) or `--segmenter otsu`.
+   - **A**: You can try another segmentation model by specifying `--segmenter grandqc` ([Citation necessary](https://www.nature.com/articles/s41467-024-54769-y), [Non-commercial use](https://creativecommons.org/licenses/by-nc-sa/4.0/), [Original repository](https://github.com/cpath-ukk/grandqc)), `--segmenter otsu`, or `--segmenter goldmark`.
 
 - **Q**: I want to process a custom list of WSIs. Can I do it? Also, most of my WSIs don't have the micron per pixel (mpp) stored. Can I pass it?
    - **A**: Yes using the `--custom_list_of_wsis` argument. Provide a list of WSI names in a CSV (with slide extension, `wsi`). Optionally, provide the mpp (field `mpp`)

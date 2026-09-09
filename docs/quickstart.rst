@@ -117,6 +117,7 @@ High-signal knobs
   - ``grandqc`` — fast, accurate on clean H&E.
   - ``hest`` — better on IHC / dirtier slides.
   - ``otsu`` — CPU-only fallback, no model weights needed.
+  - ``goldmark`` — CPU-only GOLDMARK / MSK SlideTileExtractor (vendored thumbnail Otsu + marker detection).
 
 - ``--mag`` / ``--patch_size`` / ``--overlap`` define the patch grid; the same values must be
   used across ``coords`` and ``feat`` runs.

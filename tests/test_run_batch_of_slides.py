@@ -58,6 +58,17 @@ class TestRunBatchOfSlides(unittest.TestCase):
         kwargs = processor.calls[0][1]
         self.assertEqual(kwargs["device"], "cuda:0")
 
+    def test_run_task_seg_uses_cpu_for_goldmark(self):
+        processor = _DummyProcessor()
+        args = self._base_args("goldmark")
+
+        with patch("trident.segmentation_models.load.segmentation_model_factory", return_value=_DummySegmentationModel(target_mag=20)):
+            batch_mod.run_task(processor, args)
+
+        self.assertEqual(len(processor.calls), 1)
+        kwargs = processor.calls[0][1]
+        self.assertEqual(kwargs["device"], "cpu")
+
     def test_cleanup_cache_resets_cache_without_touching_job_locks(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             job_dir = os.path.join(tmpdir, "job")

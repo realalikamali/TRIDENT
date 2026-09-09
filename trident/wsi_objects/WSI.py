@@ -492,35 +492,38 @@ class WSI:
             thumbnail_width = int(thumbnail_height * self.width / self.height)
         thumbnail = self.get_thumbnail((thumbnail_width, thumbnail_height))
 
-        # dataloader = DataLoader(dataset, batch_size=batch_size, num_workers=0, pin_memory=True)
+        # Whole-slide classical segmenters (e.g. Goldmark) skip the patch loop
+        # and return level-0 contours directly.
+        if getattr(segmentation_model, "whole_slide", False):
+            gdf_contours = segmentation_model.segment_wsi(self)
+        else:
+            predicted_mask, mpp_reduction_factor = self._segment_semantic(
+                segmentation_model,
+                target_mag,
+                verbose,
+                device,
+                batch_size,
+                None,
+                num_workers,
+                None
+            )
 
-        predicted_mask, mpp_reduction_factor = self._segment_semantic(
-            segmentation_model,
-            target_mag,
-            verbose,
-            device,
-            batch_size,
-            None,
-            num_workers,
-            None
-        )
-        
-        # Post-process the mask
-        predicted_mask = (predicted_mask > 0).astype(np.uint8) * 255
+            # Post-process the mask
+            predicted_mask = (predicted_mask > 0).astype(np.uint8) * 255
 
-        # # Fill holes if desired
-        # if not holes_are_tissue:
-        #     holes, _ = cv2.findContours(predicted_mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-        #     for hole in holes:
-        #         cv2.drawContours(predicted_mask, [hole], 0, 255, -1)
+            # # Fill holes if desired
+            # if not holes_are_tissue:
+            #     holes, _ = cv2.findContours(predicted_mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+            #     for hole in holes:
+            #         cv2.drawContours(predicted_mask, [hole], 0, 255, -1)
 
-        gdf_contours = mask_to_gdf(
-            mask=predicted_mask,
-            max_nb_holes=0 if holes_are_tissue else 20,
-            min_contour_area=1000,
-            pixel_size=self.mpp,
-            contour_scale=1/mpp_reduction_factor
-        )
+            gdf_contours = mask_to_gdf(
+                mask=predicted_mask,
+                max_nb_holes=0 if holes_are_tissue else 20,
+                min_contour_area=1000,
+                pixel_size=self.mpp,
+                contour_scale=1/mpp_reduction_factor
+            )
         if job_dir is not None:
 
             # Save thumbnail image

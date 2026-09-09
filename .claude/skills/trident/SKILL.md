@@ -101,9 +101,9 @@ two Virchow2 flavours are therefore never interchangeable; they live in separate
 `features_virchow2/` vs `features_virchow2-cls/` folders by design.
 
 **3. Segmenter.** Default `--segmenter hest` (a model — runs on GPU). `grandqc` = fast H&E.
-`otsu` = classical, **CPU-only** — on a machine with no GPU you must pass `--segmenter otsu`
-explicitly (the default `hest` expects a GPU). For segmentation, `--gpus -1` and `otsu`
-go together.
+`otsu` and `goldmark` = classical, **CPU-only** — on a machine with no GPU you must pass
+`--segmenter otsu` or `--segmenter goldmark` explicitly (the default `hest` expects a GPU).
+For segmentation, `--gpus -1` and `otsu`/`goldmark` go together.
 - If segmentation misses tissue, lower `--seg_conf_thresh` (default 0.5 → try 0.4) to retain more.
 - Optional clean-up: `--remove_penmarks` (gentle) or `--remove_artifacts` (aggressive:
   folds, blur, stains, OOF…).
@@ -196,7 +196,7 @@ to a `coords`/`all` run — writes PNGs (or `--dump_patches_format jpg`) to
 - `--patch_encoder_img_size` and `--patch_encoder_ckpt_path` apply only to `--patch_encoder`; they are silently ignored when `--slide_encoder` is set.
 - `--task coords`/`feat` on a fresh `--job_dir` → silently skips (no prior stage); use `--task all`, or run the stages in order.
 - `--slide_encoder` without `--task all`/`feat` → only segmentation runs, no embeddings.
-- No-GPU machine without `--segmenter otsu` → default `hest` tries to use a GPU.
+- No-GPU machine without `--segmenter otsu` or `--segmenter goldmark` → default `hest` tries to use a GPU.
 - `timm` outside `>=0.9.16,<2` → cryptic model-build errors that can look like a model *load* failure.
 - Gated HF model without access → load failure (request access + `huggingface-cli login`).
 - `FlashAttention only supports Ampere GPUs or newer` from `gigapath`/`gigapath-flash`/`prism2` on a

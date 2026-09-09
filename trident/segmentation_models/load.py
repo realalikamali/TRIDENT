@@ -391,6 +391,105 @@ class OtsuSegmenter(SegmentationModel):
         return torch.from_numpy(np.stack(preds, axis=0))
 
 
+class GoldmarkSegmenter(SegmentationModel):
+    """Whole-slide classical tissue segmenter (GOLDMARK / MSK SlideTileExtractor).
+
+    Unlike HEST / GrandQC / Otsu, this does not tile the slide. It builds one
+    thumbnail mask (RGB marker detection + Otsu) and converts occupancy polygons
+    into level-0 GeoJSON that the regular coords stage consumes.
+    """
+
+    whole_slide = True
+
+    def __init__(self, **build_kwargs):
+        super().__init__(**build_kwargs)
+
+    def _build(
+        self,
+        mask_size: int = 224,  # tissue occupancy grid; not UNI/Virchow patch size
+        target_mpp: float = 0.5,
+        grid_mult: int = 4,
+        min_cc_size: int = 10,
+        patch_size: int = 224,  # only scales min_cc_size; encoder tiles use --patch_size
+        dilate: bool = False,
+        erode: bool = False,
+    ) -> Tuple[nn.Module, transforms.Compose]:
+        from trident.segmentation_models.model_zoo.goldmark import (
+            DEFAULT_GRID_MULT,
+            DEFAULT_MASK_SIZE,
+            DEFAULT_MIN_CC_SIZE,
+            DEFAULT_MPP,
+            DEFAULT_TILE_SIZE,
+        )
+
+        self.mask_size = int(mask_size if mask_size is not None else DEFAULT_MASK_SIZE)
+        self.target_mpp = float(target_mpp if target_mpp is not None else DEFAULT_MPP)
+        self.grid_mult = max(1, int(grid_mult if grid_mult is not None else DEFAULT_GRID_MULT))
+        self.min_cc_size = int(min_cc_size if min_cc_size is not None else DEFAULT_MIN_CC_SIZE)
+        self.patch_size = int(patch_size if patch_size is not None else DEFAULT_TILE_SIZE)
+        self.dilate = bool(dilate)
+        self.erode = bool(erode)
+        # Unused by the whole-slide path; kept so Processor can read target_mag.
+        self.input_size = self.mask_size
+        self.precision = torch.float32
+        self.target_mag = 20
+        eval_transforms = transforms.Compose([transforms.ToTensor()])
+        return None, eval_transforms
+
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        raise RuntimeError(
+            "GoldmarkSegmenter is a whole-slide thumbnail segmenter. "
+            "Use WSI.segment_tissue() rather than per-tile forward()."
+        )
+
+    def segment_wsi(self, wsi):
+        import numpy as np
+        from trident.segmentation_models.model_zoo.goldmark import (
+            binary_dilation,
+            binary_erosion,
+            filter_regions,
+            image2array,
+            occupancy_polygons,
+            occupancy_polygons_to_gdf,
+            thumbnail_wh,
+            threshold_rgb,
+        )
+
+        wsi._lazy_initialize()
+        if wsi.mpp is None:
+            raise ValueError(
+                "Goldmark segmenter requires microns-per-pixel (MPP) metadata on the WSI."
+            )
+        width, height = int(wsi.width), int(wsi.height)
+        thumb_w, thumb_h = thumbnail_wh(
+            width, height, self.mask_size, self.target_mpp, float(wsi.mpp), self.grid_mult
+        )
+        thumbnail = wsi.get_thumbnail((thumb_w, thumb_h)).convert("RGB").resize((thumb_w, thumb_h))
+        img_c = image2array(thumbnail)
+        marker_mult = float(wsi.mpp) / self.target_mpp * self.grid_mult
+        mask, _threshold = threshold_rgb(img_c, marker_mult=marker_mult, pool_mult=self.grid_mult)
+        if self.erode:
+            mask = binary_erosion(mask)
+        if self.dilate:
+            mask = binary_dilation(mask)
+        mask_min_cc_size = int(round(self.min_cc_size * (self.patch_size / self.mask_size) ** 2))
+        mask = filter_regions(mask, mask_min_cc_size)
+        mask[mask > 0] = 1
+        mask = (mask * 255).astype(np.uint8)
+        rings = occupancy_polygons(mask)
+        scale_x = width / float(mask.shape[1])
+        scale_y = height / float(mask.shape[0])
+        return occupancy_polygons_to_gdf(rings, scale_x, scale_y)
+
+
+CPU_SEGMENTERS = frozenset({"otsu", "goldmark"})
+
+
+def is_cpu_segmenter(model_name: str) -> bool:
+    """Return True if this segmenter should run on CPU (no neural net / no GPU)."""
+    return model_name in CPU_SEGMENTERS
+
+
 def segmentation_model_factory(
     model_name: str, 
     confidence_thresh: float = 0.5, 
@@ -418,5 +517,7 @@ def segmentation_model_factory(
         return GrandQCArtifactSegmenter(freeze=freeze, **build_kwargs)
     elif model_name == 'otsu':
         return OtsuSegmenter(freeze=freeze, confidence_thresh=confidence_thresh, **build_kwargs)
+    elif model_name == 'goldmark':
+        return GoldmarkSegmenter(freeze=freeze, confidence_thresh=confidence_thresh, **build_kwargs)
     else:
         raise ValueError(f"Model type {model_name} not supported")

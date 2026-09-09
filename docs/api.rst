@@ -111,6 +111,10 @@ them before any commercial use.
      - ``--segmenter otsu``
      - —
      - — (classical, no model)
+   * - **Goldmark**
+     - ``--segmenter goldmark``
+     - `GOLDMARK <https://github.com/chadvanderbilt/GOLDMARK>`__ (vendored)
+     - — (classical, no model)
 
 .. automodule:: trident.segmentation_models
    :members:

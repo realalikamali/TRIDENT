@@ -117,8 +117,8 @@ def build_parser() -> argparse.ArgumentParser:
                               "Defaults to False (only top-level slides are included)."))
     # Segmentation arguments 
     parser.add_argument('--segmenter', type=str, default='hest', 
-                        choices=['hest', 'grandqc', 'otsu'],
-                        help='Type of tissue vs background segmenter. Options are HEST, GrandQC, or Otsu.')
+                        choices=['hest', 'grandqc', 'otsu', 'goldmark'],
+                        help='Type of tissue vs background segmenter. Options are HEST, GrandQC, Otsu, or Goldmark.')
     parser.add_argument('--seg_conf_thresh', type=float, default=0.5, 
                     help='Confidence threshold to apply to binarize segmentation predictions. Lower this threhsold to retain more tissue. Defaults to 0.5. Try 0.4 as 2nd option.')
     parser.add_argument('--remove_holes', action='store_true', default=False, 
@@ -273,9 +273,9 @@ def run_task(processor: Processor, args: argparse.Namespace) -> None:
             device = f"cuda:{primary_gpu}" if primary_gpu >= 0 else "cpu"
 
     if args.task == 'seg':
-        from trident.segmentation_models.load import segmentation_model_factory
+        from trident.segmentation_models.load import is_cpu_segmenter, segmentation_model_factory
 
-        seg_device = "cpu" if args.segmenter == "otsu" else device
+        seg_device = "cpu" if is_cpu_segmenter(args.segmenter) else device
 
         # instantiate segmentation model and artifact remover if requested by user
         segmentation_model = segmentation_model_factory(

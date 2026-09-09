@@ -72,6 +72,21 @@ class TestRunSingleSlide(unittest.TestCase):
         _, seg_kwargs = slide.segment_tissue.call_args
         self.assertEqual(seg_kwargs["device"], "cuda:1")
 
+    def test_process_slide_uses_cpu_for_goldmark(self):
+        args = self._base_args("goldmark")
+        slide = MagicMock()
+        slide.name = "fake"
+        slide.extract_tissue_coords.return_value = "/tmp/job/coords.h5"
+        slide.visualize_coords.return_value = "/tmp/job/viz.jpg"
+
+        with patch("run_single_slide.load_wsi", return_value=_SlideContext(slide)), \
+             patch("run_single_slide.segmentation_model_factory", return_value=_SegModel(target_mag=20)), \
+             patch("run_single_slide.encoder_factory", return_value=MagicMock()):
+            single_mod.process_slide(args)
+
+        _, seg_kwargs = slide.segment_tissue.call_args
+        self.assertEqual(seg_kwargs["device"], "cpu")
+
 
 if __name__ == "__main__":
     unittest.main()
